@@ -17,20 +17,16 @@ public class RelatedPhrases {
     Float iThreshold = 1.1f;
     Float relatedThreshold = 1.2f;
 
-    Integer maxPhrasesInBank = 200000;
-    Integer phrase_banks_count = 1;
-    Integer phrase_current_bank = 0;
-
     public Integer documentsCount = 0;
-    public Dictionary<String, Phrase> phrases = new Hashtable<>();
-    public ArrayList<Phrase> goodPhrases = new ArrayList<>();
-    public ArrayList<ArrayList<Float>> g_matrix;
+    public Map<String, Phrase> phrases = new HashMap<>();
+    public List<Phrase> goodPhrases = new LinkedList<>();
+    public List<List<Float>> g_matrix = new ArrayList<>();
 
     public RelatedPhrases() {
 
     }
 
-    public void addDocument(Integer document, String text) throws IOException {
+    public void addDocument(Integer document, String text) {
         // Text normalisation
         text = text.replaceAll("[^\\da-zA-Zа-яёА-ЯЁ .!?]", " "); // Del wrong cymbals
         text = textDelFreeNum(text); // Del free num
@@ -46,27 +42,18 @@ public class RelatedPhrases {
             for (int i = 0; i < words.length; i++) {
                 for (int j = 1; j < windowOneSize; j++) {
                     // Gen new phrase
-                    String phrase_text = "";
+                    StringBuilder phrase_text = new StringBuilder();
                     for (int l = 0; l < j && i + l < words.length; l++)
-                        phrase_text = phrase_text.concat(" " + words[i + l]);
+                        phrase_text.append(" ").append(words[i + l]);
 
                     // Add phrase to base
                     if (phrase_text.length() > 0) {
-                        Phrase buf = phrases.get(phrase_text);
+                        String key = phrase_text.toString().strip();
+                        Phrase buf = phrases.get(key);
                         if (buf == null)
-                            buf = new Phrase(phrase_text, document, wordsCount, false);
-                        else
-                            buf.add(document, wordsCount, false);
-                        phrases.put(phrase_text, buf);
-
-                        if(phrases.size() > maxPhrasesInBank) {
-                            FileOutputStream fout = new FileOutputStream(
-                                    "banks\\bank_"+(phrase_banks_count-1) + ".bin");
-                            ObjectOutputStream oos = new ObjectOutputStream(fout);
-                            oos.writeObject(phrases);
-                            phrases = new Hashtable<>();
-                            phrase_banks_count += 1;
-                        }
+                            buf = new Phrase(key);
+                        buf.add(document, wordsCount, false);
+                        phrases.put(key, buf);
                     }
                 }
                 wordsCount += 1;
@@ -96,9 +83,7 @@ public class RelatedPhrases {
     }
 
     public void markGoods() {
-        Enumeration<Phrase> phrases = this.phrases.elements();
-        while (phrases.hasMoreElements()) {
-            Phrase phrase = phrases.nextElement();
+        for (Phrase phrase : this.phrases.values()) {
             if(Float.valueOf(phrase.p) / documentsCount>= pThreshold &&
                     Float.valueOf(phrase.s)/documentsCount >= sThreshold) {
                 phrase.e = Float.valueOf(phrase.p) / documentsCount;
@@ -108,6 +93,30 @@ public class RelatedPhrases {
     }
 
     public void generateGMatrix() {
+        g_matrix.clear();
+        for (int i = 0; i < goodPhrases.size(); i++) {
+            g_matrix.add(new ArrayList<>());
+            Phrase phrase_one = goodPhrases.get(i);
+            for (Phrase phrase_two : this.goodPhrases) {
+                // Documents with a both of goods
+                Set<Integer> duplicate_documents = new HashSet<>(phrase_one.positionInDocuments.keySet());
+                duplicate_documents.retainAll(phrase_two.positionInDocuments.keySet());
 
+                // Count of intersection
+                int R = 0;
+                for(Integer document : duplicate_documents) {
+                    for(Integer pos_one : phrase_one.positionInDocuments.get(document))
+                        for(Integer pos_two : phrase_one.positionInDocuments.get(document)) {
+                            if (Math.abs(pos_one - pos_two) <= windowTwoSize)
+                                R += 1;
+                        }
+                }
+                // Add to matrix
+                float E = phrase_one.e * phrase_two.e;
+                float A = R / Float.valueOf(documentsCount);
+                float I = A / E;
+                g_matrix.get(i).add(I);
+            }
+        }
     }
 }

@@ -4,31 +4,30 @@ import java.io.Serializable;
 import java.util.*;
 
 public class Phrase implements Serializable {
-    String text;
-    Integer p;
-    Integer s;
-    Integer m;
-    Float e;
-    Boolean predicts;
-    Set<Integer> canPredict;
-    Dictionary<Integer, List<Integer>> positionInDocuments;
-    Dictionary<Integer, List<Integer>> documentsIndex;
+    public String text;
+    public Integer p;
+    public Integer s;
+    public Integer m;
+    public Float e;
+    public Boolean predicts;
+    public Set<Integer> canPredict;
+    public Map<Integer, List<Integer>> positionInDocuments;
+    public Map<Integer, List<Integer>> documentsIndex;
 
-    public Phrase(String text, Integer document, Integer position, Boolean isInteresting) {
+    public Phrase(String text) {
         this.text = text;
-        this.p = 1;
-        this.s = 1;
-        this.m = isInteresting ? 1 : 0;
+        this.p = 0;
+        this.s = 0;
+        this.m = 0;
         this.e = 0F;
         this.predicts = false;
-        this.positionInDocuments = new Hashtable<>();
-        this.positionInDocuments.put(document, new ArrayList<Integer>(position));
+        this.positionInDocuments = new HashMap<>();
     }
 
     public void add(Integer document, Integer position, Boolean isInteresting) {
         List<Integer> documentArray = positionInDocuments.get(document);
         if(documentArray == null)
-            documentArray = new ArrayList<Integer>(position);
+            documentArray = new LinkedList<>();
         else
             documentArray.add(position);
         this.positionInDocuments.put(document, documentArray);
@@ -43,8 +42,8 @@ public class Phrase implements Serializable {
         this.m += other.s;
 
         // common documents processing
-        List<Integer> duplicate_documents = Collections.list(this.positionInDocuments.keys());
-        duplicate_documents.retainAll(Collections.list(other.positionInDocuments.keys()));
+        Set<Integer> duplicate_documents = new HashSet<>(positionInDocuments.keySet());
+        duplicate_documents.retainAll(other.positionInDocuments.keySet());
 
         for(Integer document : duplicate_documents) {
             List<Integer> bufPositionInDocuments = this.positionInDocuments.get(document);
@@ -53,7 +52,7 @@ public class Phrase implements Serializable {
         }
 
         // other documents processing
-        List<Integer> unique_documents = Collections.list(other.positionInDocuments.keys());
+        Set<Integer> unique_documents = new HashSet<>(other.positionInDocuments.keySet());
         unique_documents.retainAll(duplicate_documents);
 
         for(Integer document : unique_documents) {
