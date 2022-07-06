@@ -28,9 +28,13 @@ public class RelatedPhrases {
 
     public void addDocument(Integer document, String text) {
         // Text normalisation
+        if (text.contains("%PDF") || text.contains("Word.Document"))
+            return;
+
+        // Text normalisation
         text = text.replaceAll("[^\\da-zA-Zа-яёА-ЯЁ .!?]", " "); // Del wrong cymbals
-        text = textDelFreeNum(text); // Del free num
         text = textWordsSeparate(text); // Separate words
+        text = textDelFreeNum(text); // Del free num
         text = text.replaceAll("[\\s]{2,}", " "); // Del free spaces
 
         // Text processing
